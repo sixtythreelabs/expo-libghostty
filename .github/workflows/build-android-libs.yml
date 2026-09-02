@@ -11,18 +11,18 @@ on:
       ghostty_commit:
         description: ghostty commit to build (C ABI is not yet stable — always pin)
         required: true
-        default: b0947378349eff70f7030dda0e6d022fae1e6fbd
+        default: 3c1ef5b32fc5ea6b93d28493fabf193f595139cf
 
 permissions:
   contents: write
 
 env:
   # ghostty's requireZig hard-pins the minor version.
-  ZIG_VERSION: 0.15.2
+  ZIG_VERSION: 0.16.0
   NDK_VERSION: 27.1.12297006
   # Symbols-only Nerd Font bundled as an AAR asset for PUA glyph cells.
-  NERD_FONTS_VERSION: v3.4.0
-  NERD_FONTS_SHA256: 8e617904b980fe3648a4b116808788fe50c99d2d495376cb7c0badbd8a564c47
+  NERD_FONTS_VERSION: v3.5.1
+  NERD_FONTS_SHA256: fdca3682534f6f65e1ccb2345b0362ccf67d9b8eca7c8025330946e93e2473bc
 
 jobs:
   build:

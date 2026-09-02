@@ -268,12 +268,9 @@ JNIEXPORT jlong JNICALL
 Java_expo_modules_libghostty_GhosttyVt_nativeCreate(
     JNIEnv*, jobject, jint cols, jint rows, jlong maxScrollback) {
   auto* session = new Session();
-  GhosttyTerminalOptions opts{};
-  opts.cols = static_cast<uint16_t>(cols);
-  opts.rows = static_cast<uint16_t>(rows);
-  opts.max_scrollback = static_cast<size_t>(maxScrollback);
 
-  if (ghostty_terminal_new(nullptr, &session->term, opts) != GHOSTTY_SUCCESS ||
+  if (ghostty_terminal_new(nullptr, &session->term, static_cast<uint16_t>(cols),
+                           static_cast<uint16_t>(rows)) != GHOSTTY_SUCCESS ||
       ghostty_render_state_new(nullptr, &session->renderState) != GHOSTTY_SUCCESS ||
       ghostty_render_state_row_iterator_new(nullptr, &session->rowIter) != GHOSTTY_SUCCESS ||
       ghostty_render_state_row_cells_new(nullptr, &session->cells) != GHOSTTY_SUCCESS ||
@@ -283,6 +280,9 @@ Java_expo_modules_libghostty_GhosttyVt_nativeCreate(
     destroySession(session);
     return 0;
   }
+
+  const size_t maxLines = static_cast<size_t>(maxScrollback);
+  ghostty_terminal_set(session->term, GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_LINES, &maxLines);
 
   ghostty_terminal_set(session->term, GHOSTTY_TERMINAL_OPT_USERDATA, session);
   ghostty_terminal_set(session->term, GHOSTTY_TERMINAL_OPT_WRITE_PTY,
@@ -487,9 +487,8 @@ Java_expo_modules_libghostty_GhosttyVt_nativeSnapshot(
   ghostty_render_state_get(session->renderState, GHOSTTY_RENDER_STATE_DATA_COLS, &cols);
   ghostty_render_state_get(session->renderState, GHOSTTY_RENDER_STATE_DATA_ROWS, &rows);
 
-  GhosttyRenderStateColors colors{};
-  colors.size = sizeof(colors);
-  ghostty_render_state_colors_get(session->renderState, &colors);
+  GhosttyRenderStateColors colors = GHOSTTY_INIT_SIZED(GhosttyRenderStateColors);
+  ghostty_render_state_get(session->renderState, GHOSTTY_RENDER_STATE_DATA_COLORS, &colors);
 
   bool cursorVisible = false;
   bool cursorBlinking = false;
@@ -814,8 +813,10 @@ Java_expo_modules_libghostty_GhosttyVt_nativeEncodePaste(
     env->GetByteArrayRegion(data, 0, len, reinterpret_cast<jbyte*>(input.data()));
   }
 
-  bool bracketed = false;
-  ghostty_terminal_mode_get(session->term, GHOSTTY_MODE_BRACKETED_PASTE, &bracketed);
+  GhosttyTerminalModeConfig modeConfig{};
+  modeConfig.mode = GHOSTTY_MODE_BRACKETED_PASTE;
+  ghostty_terminal_get(session->term, GHOSTTY_TERMINAL_DATA_MODE, &modeConfig);
+  const bool bracketed = modeConfig.value;
 
   // Bracketed wrapping adds 12 bytes; stripping/CR replacement is 1:1.
   std::vector<char> out(input.size() + 16);

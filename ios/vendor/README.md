@@ -5,8 +5,8 @@ Synced by `scripts/sync-vendor.sh` from the tags pinned in
 
 | Directory | Upstream | Tag |
 | --- | --- | --- |
-| `GhosttyKit/`, `GhosttyTerminal/` | https://github.com/Lakr233/libghostty-spm.git | 1.3.1 |
-| `MSDisplayLink/` | https://github.com/Lakr233/MSDisplayLink.git | 2.1.0 |
+| `GhosttyKit/`, `GhosttyTerminal/` | https://github.com/Lakr233/libghostty-spm.git | 1.5.1 |
+| `MSDisplayLink/` | https://github.com/Lakr233/MSDisplayLink.git | 2.2.0 |
 
 Licenses: `LICENSE-libghostty-spm.txt`, `LICENSE-MSDisplayLink.txt` (both MIT).
 The `Frameworks/` directory is populated at install time by

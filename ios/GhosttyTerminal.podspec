@@ -2,7 +2,7 @@
 # Swift wrapper layer: native terminal views, input/IME handling, display link.
 Pod::Spec.new do |s|
   s.name    = 'GhosttyTerminal'
-  s.version = '1.3.1'
+  s.version = '1.5.1'
   s.summary = 'Ghostty-powered native terminal view (vendored by expo-libghostty).'
   s.author  = { 'Lakr233' => 'https://github.com/Lakr233' }
   s.homepage = 'https://github.com/Lakr233/libghostty-spm'
@@ -16,6 +16,14 @@ Pod::Spec.new do |s|
   s.dependency 'GhosttyKit'
   s.dependency 'MSDisplayLink'
 
-  s.source_files = 'vendor/GhosttyTerminal/**/*.swift'
-  s.resource_bundles = { 'GhosttyTerminal_privacy' => 'privacy/GhosttyTerminal/PrivacyInfo.xcprivacy' }
+  s.source_files = 'vendor/GhosttyTerminal/**/*.swift', 'GhosttyTerminalBundle+CocoaPods.swift'
+  # SPM generates Bundle.module for Resources/{Ghostty,terminfo}; CocoaPods
+  # needs an explicit resource bundle plus the Bundle.module shim.
+  s.resource_bundles = {
+    'GhosttyTerminal_privacy' => 'privacy/GhosttyTerminal/PrivacyInfo.xcprivacy',
+    'GhosttyTerminal' => [
+      'vendor/GhosttyTerminal/Resources/Ghostty',
+      'vendor/GhosttyTerminal/Resources/terminfo',
+    ],
+  }
 end

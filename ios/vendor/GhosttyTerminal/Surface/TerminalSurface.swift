@@ -59,7 +59,7 @@ public final class TerminalSurface {
     }
 
     @discardableResult
-    func sendMouseButton(
+    public func sendMouseButton(
         state: ghostty_input_mouse_state_e,
         button: ghostty_input_mouse_button_e,
         mods: ghostty_input_mods_e
@@ -76,7 +76,7 @@ public final class TerminalSurface {
         return result
     }
 
-    func sendMousePos(x: Double, y: Double, mods: ghostty_input_mods_e) {
+    public func sendMousePos(x: Double, y: Double, mods: ghostty_input_mods_e) {
         guard let s = surface else {
             TerminalDebugLog.log(.input, "surface mouse position ignored: missing surface")
             return
@@ -224,7 +224,7 @@ public final class TerminalSurface {
         let offsetLength: UInt32
     }
 
-    func hasSelection() -> Bool {
+    public func hasSelection() -> Bool {
         guard let s = surface else {
             TerminalDebugLog.log(.input, "surface selection query ignored: missing surface")
             return false
@@ -234,7 +234,7 @@ public final class TerminalSurface {
         return result
     }
 
-    func readSelection() -> String? {
+    public func readSelection() -> String? {
         readSelectionResult()?.text
     }
 
@@ -288,13 +288,6 @@ public final class TerminalSurface {
             "surface imePoint x=\(String(format: "%.2f", x)) y=\(String(format: "%.2f", y)) width=\(String(format: "%.2f", w)) height=\(String(format: "%.2f", h))"
         )
         return (x, y, w, h)
-    }
-
-    // MARK: - Mouse Capture
-
-    var isMouseCaptured: Bool {
-        guard let s = surface else { return false }
-        return ghostty_surface_mouse_captured(s)
     }
 
     // MARK: - Quicklook Word (Apple-only)

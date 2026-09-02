@@ -7,6 +7,11 @@
     import GhosttyKit
     import UIKit
 
+    /// UITextInput delegate wiring; behavior lives in +UITextInput.
+    struct TextInputBridgeState {
+        weak var inputDelegate: (any UITextInputDelegate)?
+    }
+
     extension UITerminalView: UITextInput, UITextInputTraits {
         // MARK: - UITextInputTraits
 
@@ -40,6 +45,16 @@
             set {}
         }
 
+        /// Off for the same reason as autocorrection, and doubly so: the
+        /// system delivers inline predictions as marked text, which a
+        /// terminal renders as highlighted preedit at the caret — plain
+        /// typing then looks perpetually selected.
+        @available(iOS 17.0, *)
+        open var inlinePredictionType: UITextInlinePredictionType {
+            get { .no }
+            set {}
+        }
+
         open var keyboardType: UIKeyboardType {
             get { .default }
             set {}
@@ -48,12 +63,41 @@
         // MARK: - UIKeyInput
 
         open func insertText(_ text: String) {
-            guard !hardwareKeyHandled else {
+            #if !targetEnvironment(macCatalyst)
+                claimPendingInputMethodKeys()
+            #endif
+            // A lone, unmarked "\n"/"\r" is the software keyboard's Return —
+            // it must travel the key path (bracketed paste turns a text-path
+            // newline into a literal insertion instead of accepting the
+            // line). Longer strings containing newlines (dictation, actual
+            // pastes) stay on the text path, where paste semantics are
+            // correct.
+            let route = TerminalSoftwareKeyCommitRouter.route(
+                text: text,
+                hasMarkedText: inputHandler.hasMarkedText,
+                hardwareKeyHandled: hardwareKeyboard.keyHandled
+            )
+
+            if route == .suppressHardwareDuplicate {
                 TerminalDebugLog.log(
                     .input,
                     "insertText suppressed text=\(TerminalDebugLog.describe(text))"
                 )
-                hardwareKeyHandled = false
+                hardwareKeyboard.keyHandled = false
+                return
+            }
+
+            if route == .semanticEnter {
+                #if !targetEnvironment(macCatalyst)
+                    let mods = stickyModifiers.consumeForNextKey()
+                    TerminalDebugLog.log(
+                        .input,
+                        "insertText semantic enter mods=0x\(String(mods.ghosttyMods.rawValue, radix: 16))"
+                    )
+                    sendSyntheticKey(usage: 0x28, additionalMods: mods)
+                #else
+                    sendReturnKey()
+                #endif
                 return
             }
 
@@ -72,16 +116,44 @@
             inputHandler.insertText(text)
         }
 
+        #if targetEnvironment(macCatalyst)
+        /// Deliver Return exactly as a hardware keyboard would: one Enter key
+        /// event through the core's key encoder, so terminal modes (kitty
+        /// keyboard protocol included) keep deciding the bytes. iOS routes
+        /// semantic Enter through sendSyntheticKey (sticky modifiers apply);
+        /// Catalyst has no accessory bar, so this direct path remains.
+        private func sendReturnKey() {
+            let usage = UInt16(UIKeyboardHIDUsage.keyboardReturnOrEnter.rawValue)
+
+            var keyEvent = ghostty_input_key_s()
+            keyEvent.action = GHOSTTY_ACTION_PRESS
+            keyEvent.mods = ghostty_input_mods_e(rawValue: 0)
+            keyEvent.keycode = TerminalHardwareKeyRouter.appKitKeyCodeForUIKit(
+                usage: usage
+            )
+            keyEvent.composing = false
+
+            let carriageReturn = "\r"
+            carriageReturn.withCString { ptr in
+                keyEvent.text = ptr
+                surface?.sendKeyEvent(keyEvent)
+            }
+        }
+        #endif
+
         open func deleteBackward() {
+            #if !targetEnvironment(macCatalyst)
+                claimPendingInputMethodKeys()
+            #endif
             if inputHandler.deleteBackwardInMarkedText() {
                 TerminalDebugLog.log(.input, "deleteBackward handled by marked text")
-                hardwareKeyHandled = false
+                hardwareKeyboard.keyHandled = false
                 return
             }
 
-            guard !hardwareKeyHandled else {
+            guard !hardwareKeyboard.keyHandled else {
                 TerminalDebugLog.log(.input, "deleteBackward suppressed")
-                hardwareKeyHandled = false
+                hardwareKeyboard.keyHandled = false
                 return
             }
 
@@ -94,17 +166,6 @@
                     return
                 }
             #endif
-
-            let delivery = TerminalHardwareKeyRouter.routeUIKit(
-                usage: usage,
-                backend: configuration.backend
-            )
-            if case let .data(sequence) = delivery,
-               case let .inMemory(session) = configuration.backend
-            {
-                session.sendInput(sequence)
-                return
-            }
 
             var keyEvent = ghostty_input_key_s()
             keyEvent.action = GHOSTTY_ACTION_PRESS
@@ -127,10 +188,16 @@
             _ markedText: String?,
             selectedRange: NSRange
         ) {
+            #if !targetEnvironment(macCatalyst)
+                claimPendingInputMethodKeys()
+            #endif
             inputHandler.setMarkedText(markedText, selectedRange: selectedRange)
         }
 
         open func unmarkText() {
+            #if !targetEnvironment(macCatalyst)
+                claimPendingInputMethodKeys()
+            #endif
             inputHandler.unmarkText(applyingStickyModifiers: false)
         }
 
@@ -223,6 +290,9 @@
 
         open func replace(_: UITextRange, withText text: String) {
             #if !targetEnvironment(macCatalyst)
+                claimPendingInputMethodKeys()
+            #endif
+            #if !targetEnvironment(macCatalyst)
                 if inputHandler.hasMarkedText {
                     inputHandler.insertText(text)
                     return
@@ -240,8 +310,8 @@
         // MARK: - UITextInput Delegate
 
         open var inputDelegate: (any UITextInputDelegate)? {
-            get { _inputDelegate }
-            set { _inputDelegate = newValue }
+            get { textInputBridge.inputDelegate }
+            set { textInputBridge.inputDelegate = newValue }
         }
 
         // MARK: - UITextInput Tokenizer

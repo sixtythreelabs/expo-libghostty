@@ -17,12 +17,28 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
     private let writeHandler: @Sendable (Data) -> Void
     private let resizeHandler: @Sendable (InMemoryTerminalViewport) -> Void
 
+    /// Skip resize dispatches whose grid is unchanged and only the pixel
+    /// metrics moved.
+    ///
+    /// Off by default: the resize closure is a lossless contract, and a host
+    /// that reads `widthPixels`/`heightPixels` would otherwise stop seeing
+    /// sub-cell changes — permanently, if the grid never changes again.
+    ///
+    /// Worth enabling for a host that only consumes columns and rows and
+    /// repaints on every dispatch. A live divider drag produces mostly
+    /// pixel-only updates (measured at ~78% of metric updates across one
+    /// session's drags), and each one asks the terminal app for a full
+    /// repaint that re-wraps its content.
+    public let suppressesPixelOnlyResizes: Bool
+
     public init(
         write: @escaping @Sendable (Data) -> Void,
-        resize: @escaping @Sendable (InMemoryTerminalViewport) -> Void
+        resize: @escaping @Sendable (InMemoryTerminalViewport) -> Void,
+        suppressesPixelOnlyResizes: Bool = false
     ) {
         writeHandler = write
         resizeHandler = resize
+        self.suppressesPixelOnlyResizes = suppressesPixelOnlyResizes
         surfaceAccess = InMemoryTerminalSurfaceAccess(
             write: Self.writeToSurface,
             processExit: Self.reportProcessExit
@@ -32,12 +48,14 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
     init(
         write: @escaping @Sendable (Data) -> Void,
         resize: @escaping @Sendable (InMemoryTerminalViewport) -> Void,
+        suppressesPixelOnlyResizes: Bool = false,
         surfaceWrite: @escaping InMemoryTerminalSurfaceAccess.Write,
         processExit: @escaping InMemoryTerminalSurfaceAccess.ProcessExit =
             InMemoryTerminalSession.reportProcessExit
     ) {
         writeHandler = write
         resizeHandler = resize
+        self.suppressesPixelOnlyResizes = suppressesPixelOnlyResizes
         surfaceAccess = InMemoryTerminalSurfaceAccess(
             write: surfaceWrite,
             processExit: processExit
@@ -136,16 +154,12 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
     /// Enqueue data for the terminal from the host backend.
     ///
     /// Writes are processed in order on a per-session serial queue so parsing
-    /// cannot block the caller or the main thread.
+    /// cannot block the caller or the main thread. Bytes that arrive before a
+    /// surface attaches are buffered (oldest dropped past a 1 MiB cap) and
+    /// flushed on attach — hosts do not need to hold their connection until
+    /// the first viewport report.
     public func receive(_ data: Data) {
-        guard surfaceAccess.enqueueWrite(data) else {
-            TerminalDebugLog.log(
-                .output,
-                "terminal <- host dropped \(TerminalDebugLog.describe(data))"
-            )
-            return
-        }
-
+        surfaceAccess.enqueueWrite(data)
         TerminalDebugLog.log(
             .output,
             "terminal <- host \(TerminalDebugLog.describe(data))"
@@ -234,7 +248,26 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
             )
             return
         }
+        // Opt-in (`suppressesPixelOnlyResizes`): only a change in grid size
+        // changes what a terminal app has to draw, so a host that repaints on
+        // every dispatch can skip the sub-cell ones. The latest pixel metrics
+        // are still recorded, so a later grid change carries them — but a host
+        // that consumes pixels must leave this off, because without a further
+        // grid change that update is never delivered.
+        let gridChanged = lastResize.map {
+            $0.columns != mergedResize.columns || $0.rows != mergedResize.rows
+        } ?? true
         lastResize = mergedResize
+        if suppressesPixelOnlyResizes, !gridChanged {
+            resizeLock.unlock()
+            TerminalDebugLog.log(
+                .metrics,
+                "resize sub-cell skipped cols=\(mergedResize.columns) rows=\(mergedResize.rows) pixels=\(mergedResize.widthPixels)x\(mergedResize.heightPixels)"
+            )
+
+            return
+        }
+
         resizeLock.unlock()
 
         TerminalDebugLog.log(
@@ -257,7 +290,15 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
         )
     }
 
-    func waitForPendingOutput() {
+    /// Blocks until every `receive(_:)` call made so far has been fully parsed by the
+    /// terminal engine's internal serial queue, including any resulting writeback (e.g.
+    /// DECRPM/DA/OSC query responses the engine generates while parsing).
+    ///
+    /// `receive(_:)` only enqueues — it returns before parsing happens. A host that feeds
+    /// buffered/replayed history and then flips some "replay done" flag on its own signal
+    /// (rather than on this call returning) can observe writeback for that history arrive
+    /// late, after the flag already says replay is over.
+    public func waitForPendingOutput() {
         surfaceAccess.waitForPendingOutput()
     }
 
