@@ -32,6 +32,9 @@
   7.0.2 (`@typescript/native`); the `typescript` package is
   `@typescript/typescript6` so ESLint still has a compiler API (TypeScript
   7 has none until 7.1).
+- iOS: `clipboard-write = ask` so OSC 52 cannot silently replace the
+  system pasteboard. User paste still proceeds; program clipboard
+  read/write is denied until a host supplies confirmation UI.
 - First automated test suites: vitest covers the TerminalView imperative
   queue (the 0.8.1 mount-race contract), and JUnit covers the Android
   snapshot wire format, cell color resolution, and the sticky-modifier state

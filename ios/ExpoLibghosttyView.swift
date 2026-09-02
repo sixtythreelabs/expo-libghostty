@@ -66,6 +66,11 @@ class ExpoLibghosttyView: ExpoView {
     self.session = session
     // Without a controller the coordinator never builds a surface
     // ("surface rebuild skipped: missing controller").
+    // OSC 52 writes must ask; the default `clipboard-write = allow`
+    // would let PTY output silently replace the system pasteboard.
+    _ = TerminalController.shared.setTerminalConfiguration(
+      TerminalConfiguration().custom("clipboard-write", "ask")
+    )
     terminalView.controller = TerminalController.shared
     terminalView.configuration = TerminalSurfaceOptions(backend: .inMemory(session))
     terminalView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -96,7 +101,8 @@ class ExpoLibghosttyView: ExpoView {
 
 // Terminal effects (OSC escapes) surfaced as component events.
 extension ExpoLibghosttyView: TerminalSurfaceBellDelegate, TerminalSurfaceTitleDelegate,
-  TerminalSurfacePwdDelegate {
+  TerminalSurfacePwdDelegate, TerminalSurfaceClipboardConfirmationDelegate
+{
   func terminalDidRingBell() {
     onBell([:])
   }
@@ -107,5 +113,11 @@ extension ExpoLibghosttyView: TerminalSurfaceBellDelegate, TerminalSurfaceTitleD
 
   func terminalDidChangeWorkingDirectory(_ path: String) {
     onDirectoryChange(["path": path])
+  }
+
+  func terminalDidRequestClipboardConfirmation(_ request: TerminalClipboardConfirmationRequest) {
+    // User-started paste can proceed. A program's OSC 52 read/write is
+    // denied until a host wires its own confirmation UI.
+    request.respond(allow: request.kind == .paste)
   }
 }
