@@ -139,7 +139,7 @@ private enum TerminalCallbacks {
         // which must not write files as a side effect; a host paste that
         // finds image or document data materialises it itself
         // (`UITerminalView.pasteFromPasteboard`).
-        guard let text = TerminalPasteboardContent.text() else {
+        guard let text = TerminalPasteboardContent.text(from: .general) else {
             TerminalDebugLog.log(.input, "clipboard paste read empty")
             return false
         }

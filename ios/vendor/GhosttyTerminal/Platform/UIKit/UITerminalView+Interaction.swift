@@ -438,7 +438,7 @@
             if inputHandler.hasMarkedText {
                 inputHandler.unmarkText()
             }
-            if TerminalPasteboardContent.text() != nil {
+            if TerminalPasteboardContent.text(from: .general) != nil {
                 _ = surface?.performBindingAction("paste_from_clipboard")
                 return
             }
