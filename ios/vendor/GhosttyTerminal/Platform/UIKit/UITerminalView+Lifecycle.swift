@@ -112,6 +112,7 @@
                 // The surface survives on purpose: this detach may be a
                 // cover's temporary one, and the view's own teardown frees
                 // the surface when the terminal really goes away.
+                cancelReportedPointerButton()
                 core.stopDisplayLink()
             }
         }
@@ -258,6 +259,12 @@
         @discardableResult
         override open func resignFirstResponder() -> Bool {
             let result = super.resignFirstResponder()
+            #if !targetEnvironment(macCatalyst)
+                // A handoff to another responder keeps the keyboard up, so
+                // `keyboardDidHide` never fires for this view; the flag means
+                // "this view owns the visible keyboard" and must drop here.
+                softwareKeyboard.isVisible = false
+            #endif
             core.setFocus(false)
             focusBridge.onFocusChange?(false)
             return result

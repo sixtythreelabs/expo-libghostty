@@ -92,7 +92,17 @@
 
         open var configuration: TerminalSurfaceOptions {
             get { core.configuration }
-            set { core.configuration = newValue }
+            set {
+                #if !targetEnvironment(macCatalyst)
+                    // SwiftUI stamps the options on every update; only a
+                    // changed fontSize rebuilds the surface at a new size,
+                    // so only then does the pinch counter follow it.
+                    if newValue.fontSize != core.configuration.fontSize {
+                        fontZoom.currentFontSize = newValue.fontSize ?? 14
+                    }
+                #endif
+                core.configuration = newValue
+            }
         }
 
         /// Whether this surface should keep drawing — the UIKit twin of the
@@ -155,6 +165,9 @@
             }
             core.onCellSizeDidChange = { [weak self] in
                 self?.refreshTextInputGeometry(reason: "cell-size-action")
+            }
+            core.onMouseShape = { [weak self] shape in
+                self?.applyMouseShape(shape)
             }
             core.onPostRender = { [weak self] in
                 self?.enforceSublayerScale()

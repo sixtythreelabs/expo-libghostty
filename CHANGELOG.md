@@ -22,8 +22,8 @@
 
 ### 💡 Others
 
-- Dependency bump: libghostty-spm 1.3.1 → 1.5.1 (XCFramework
-  `upstream.1.3.1-2`, Ghostty v1.3.1), MSDisplayLink 2.1.0 → 2.2.0,
+- Dependency bump: libghostty-spm 1.3.1 → 1.5.20260903 (XCFramework
+  `upstream.c4e16970a803`, ghostty `c4e16970`), MSDisplayLink 2.1.0 → 2.2.0,
   libghostty-vt to ghostty `3c1ef5b` (Zig 0.16.0, Nerd Fonts v3.5.1).
   Android JNI follows the new vt C API (`ghostty_terminal_new` cols/rows,
   mode query via `GHOSTTY_TERMINAL_DATA_MODE`, colors via
