@@ -2,15 +2,14 @@
   "name": "expo-libghostty",
   "version": "0.8.1",
   "description": "Ghostty terminal view for Expo / React Native, powered by libghostty",
-  "main": "build/index.js",
-  "types": "build/index.d.ts",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "scripts": {
     "build": "node internal/module_scripts/build.js",
     "clean": "node internal/module_scripts/clean.js",
     "lint": "eslint src/",
     "test": "vitest run",
     "prepare": "node internal/module_scripts/prepare.js",
-    "postinstall": "node scripts/download-xcframework.mjs && node scripts/download-android-libs.mjs",
     "sync-vendor": "./scripts/sync-vendor.sh",
     "open:ios": "node internal/module_scripts/open-ios.js",
     "open:android": "node internal/module_scripts/open-android.js"
