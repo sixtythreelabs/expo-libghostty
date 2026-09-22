@@ -26,5 +26,6 @@ Pod::Spec.new do |s|
 
   # Module sources only — the vendored pods own everything under vendor/.
   s.source_files = '*.{h,m,mm,swift,hpp,cpp}'
+  s.exclude_files = 'GhosttyTerminalBundle+CocoaPods.swift'
   s.resource_bundles = { 'ExpoLibghostty_privacy' => 'privacy/ExpoLibghostty/PrivacyInfo.xcprivacy' }
 end

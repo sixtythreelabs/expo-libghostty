@@ -42,6 +42,69 @@ public protocol TerminalSurfaceCloseDelegate: TerminalSurfaceViewDelegate {
     func terminalDidClose(processAlive: Bool)
 }
 
+/// The operation that caused Ghostty to request a clipboard decision.
+public enum TerminalClipboardRequestKind: Sendable {
+    case paste
+    case osc52Read
+    case osc52Write
+
+    init?(_ rawValue: ghostty_clipboard_request_e) {
+        switch rawValue {
+        case GHOSTTY_CLIPBOARD_REQUEST_PASTE:
+            self = .paste
+        case GHOSTTY_CLIPBOARD_REQUEST_OSC_52_READ:
+            self = .osc52Read
+        case GHOSTTY_CLIPBOARD_REQUEST_OSC_52_WRITE:
+            self = .osc52Write
+        default:
+            return nil
+        }
+    }
+}
+
+/// A one-shot host decision for an unsafe or otherwise protected clipboard
+/// request. Hosts must call ``respond(allow:)`` exactly once. Dropping an
+/// unanswered request cancels it.
+@MainActor
+public final class TerminalClipboardConfirmationRequest {
+    public let contents: String
+    public let kind: TerminalClipboardRequestKind
+
+    private var completion: ((Bool) -> Void)?
+
+    init(
+        contents: String,
+        kind: TerminalClipboardRequestKind,
+        completion: @escaping (Bool) -> Void
+    ) {
+        self.contents = contents
+        self.kind = kind
+        self.completion = completion
+    }
+
+    public func respond(allow: Bool) {
+        guard let completion else { return }
+        self.completion = nil
+        completion(allow)
+    }
+
+    deinit {
+        MainActor.assumeIsolated {
+            completion?(false)
+        }
+    }
+}
+
+/// Lets an embedding host own confirmation UI for unsafe paste and protected
+/// OSC 52 operations. If the delegate does not implement this protocol, the
+/// request is denied.
+@MainActor
+public protocol TerminalSurfaceClipboardConfirmationDelegate: TerminalSurfaceViewDelegate {
+    func terminalDidRequestClipboardConfirmation(
+        _ request: TerminalClipboardConfirmationRequest
+    )
+}
+
 // MARK: - Extended action delegates
 
 /// State of an OSC 9;4 / DECSET progress report.
@@ -111,10 +174,60 @@ public protocol TerminalSurfaceHoverLinkDelegate: TerminalSurfaceViewDelegate {
     func terminalDidUpdateHoverLink(_ url: String?)
 }
 
+/// Ghostty mouse cursor shape (OSC 22 / application request).
+public enum TerminalMouseShape: Sendable, Equatable {
+    case `default`
+    case pointer
+    case text
+    case notAllowed
+    case other
+
+    init(_ raw: ghostty_action_mouse_shape_e) {
+        switch raw {
+        case GHOSTTY_MOUSE_SHAPE_DEFAULT:
+            self = .default
+        case GHOSTTY_MOUSE_SHAPE_POINTER:
+            self = .pointer
+        case GHOSTTY_MOUSE_SHAPE_TEXT, GHOSTTY_MOUSE_SHAPE_VERTICAL_TEXT, GHOSTTY_MOUSE_SHAPE_CELL:
+            self = .text
+        case GHOSTTY_MOUSE_SHAPE_NOT_ALLOWED, GHOSTTY_MOUSE_SHAPE_NO_DROP:
+            self = .notAllowed
+        default:
+            self = .other
+        }
+    }
+}
+
+@MainActor
+public protocol TerminalSurfaceMouseShapeDelegate: TerminalSurfaceViewDelegate {
+    func terminalDidChangeMouseShape(_ shape: TerminalMouseShape)
+}
+
 /// OSC 7 working-directory update.
 @MainActor
 public protocol TerminalSurfacePwdDelegate: TerminalSurfaceViewDelegate {
     func terminalDidChangeWorkingDirectory(_ path: String)
+}
+
+/// Scrollbar geometry reported by the terminal, in rows: `offset` rows are
+/// scrolled off above the viewport, `len` rows are visible, out of `total`
+/// rows of content (scrollback + screen).
+public struct TerminalScrollbar: Equatable, Sendable {
+    public let total: UInt64
+    public let offset: UInt64
+    public let len: UInt64
+
+    public init(total: UInt64, offset: UInt64, len: UInt64) {
+        self.total = total
+        self.offset = offset
+        self.len = len
+    }
+}
+
+/// The scrollbar geometry changed (the viewport scrolled or the content grew).
+@MainActor
+public protocol TerminalSurfaceScrollbarDelegate: TerminalSurfaceViewDelegate {
+    func terminalDidUpdateScrollbar(_ scrollbar: TerminalScrollbar)
 }
 
 /// User long-pressed to request a selection-page presentation.
@@ -144,4 +257,19 @@ public protocol TerminalSurfaceTextSelectionRequestDelegate: TerminalSurfaceView
 public protocol TerminalSurfaceLifecycleDelegate: TerminalSurfaceViewDelegate {
     func terminalDidAttachSurface(_ surface: TerminalSurface)
     func terminalDidDetachSurface()
+}
+
+// MARK: - Clipboard content
+
+/// One MIME-typed clipboard representation. Binary-safe: `data` may contain
+/// non-UTF8 bytes and is never implicitly text, even for a `mime` that looks
+/// text-like.
+public struct TerminalClipboardContent: Sendable {
+    public let mime: String
+    public let data: Data
+
+    public init(mime: String, data: Data) {
+        self.mime = mime
+        self.data = data
+    }
 }

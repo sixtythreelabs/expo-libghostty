@@ -2,7 +2,7 @@
 # Upstream ships SPM only; this pod exists because CocoaPods cannot consume SPM packages.
 Pod::Spec.new do |s|
   s.name    = 'MSDisplayLink'
-  s.version = '2.1.0'
+  s.version = '2.2.0'
   s.summary = 'Cross-platform DisplayLink (vendored by expo-libghostty).'
   s.author  = { 'Lakr233' => 'https://github.com/Lakr233' }
   s.homepage = 'https://github.com/Lakr233/MSDisplayLink'

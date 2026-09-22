@@ -23,9 +23,12 @@ spm_pin=$(json '.["libghostty-spm"].tag')
 msdl_pin=$(json '.MSDisplayLink.tag')
 vt_pin=$(json '.["libghostty-vt"].commit')
 
+# Package version tags are X.Y.Z. Binary zips live on storage.* (legacy)
+# or upstream.* (from 1.5.1); the XCFramework url+checksum is in
+# Package.swift's binaryTarget, not implied by the package tag.
 spm_latest=$(gh api repos/Lakr233/libghostty-spm/releases --paginate \
-  --jq '[.[].tag_name | select(startswith("storage."))] | .[]' |
-  sed 's/^storage\.//' | sort -V | tail -1)
+  --jq '[.[].tag_name | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))] | .[]' |
+  sort -V | tail -1)
 msdl_latest=$(gh api repos/Lakr233/MSDisplayLink/tags --jq '.[].name' | sort -V | tail -1)
 vt_ahead=$(gh api "repos/ghostty-org/ghostty/compare/${vt_pin}...HEAD" --jq '.ahead_by')
 
@@ -34,7 +37,7 @@ lines=()
 
 if [[ "$spm_pin" != "$spm_latest" ]]; then
   drift=true
-  lines+=("| libghostty-spm | \`$spm_pin\` | \`$spm_latest\` | \`pnpm sync-vendor\` after bumping the tag, then update the \`storage.$spm_latest\` XCFramework url + sha256 |")
+  lines+=("| libghostty-spm | \`$spm_pin\` | \`$spm_latest\` | bump the package tag, \`pnpm sync-vendor\`, then copy Package.swift's binaryTarget url + checksum into vendor-manifest.json |")
 fi
 if [[ "$msdl_pin" != "$msdl_latest" ]]; then
   drift=true

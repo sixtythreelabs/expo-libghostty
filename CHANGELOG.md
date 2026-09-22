@@ -22,6 +22,19 @@
 
 ### 💡 Others
 
+- Dependency bump: libghostty-spm 1.3.1 → 1.5.20260903 (XCFramework
+  `upstream.c4e16970a803`, ghostty `c4e16970`), MSDisplayLink 2.1.0 → 2.2.0,
+  libghostty-vt to ghostty `3c1ef5b` (Zig 0.16.0, Nerd Fonts v3.5.1).
+  Android JNI follows the new vt C API (`ghostty_terminal_new` cols/rows,
+  mode query via `GHOSTTY_TERMINAL_DATA_MODE`, colors via
+  `GHOSTTY_RENDER_STATE_DATA_COLORS`). Expo SDK 57.0.19 / React Native
+  0.86.3, ESLint 10.9.1 and typescript-eslint 8.69.0. `tsc` is TypeScript
+  7.0.2 (`@typescript/native`); the `typescript` package is
+  `@typescript/typescript6` so ESLint still has a compiler API (TypeScript
+  7 has none until 7.1).
+- iOS: `clipboard-write = ask` so OSC 52 cannot silently replace the
+  system pasteboard. User paste still proceeds; program clipboard
+  read/write is denied until a host supplies confirmation UI.
 - First automated test suites: vitest covers the TerminalView imperative
   queue (the 0.8.1 mount-race contract), and JUnit covers the Android
   snapshot wire format, cell color resolution, and the sticky-modifier state

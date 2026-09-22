@@ -124,7 +124,7 @@ dependencies this layer disappears in favor of the upstream package.
 
 On Android, `android/vendor/` holds per-ABI `libghostty-vt.a` static
 libraries plus the matching C headers, cross-compiled from a pinned ghostty
-commit (Zig 0.15.2 + NDK r27); `vendor-manifest.json` pins the tarball
+commit (Zig 0.16.0 + NDK r27); `vendor-manifest.json` pins the tarball
 checksum. A thin JNI shim (`android/src/main/cpp/ghostty_jni.cpp`) exposes
 the terminal + render-state loop to Kotlin, which paints the grid with
 Canvas/Skia (`GhosttyTerminalView.kt`).

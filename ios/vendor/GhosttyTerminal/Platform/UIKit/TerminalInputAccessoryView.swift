@@ -3,7 +3,8 @@
 //  libghostty-spm
 //
 
-#if canImport(UIKit) && !targetEnvironment(macCatalyst)
+#if canImport(UIKit)
+    #if !targetEnvironment(macCatalyst)
     import UIKit
 
     @MainActor
@@ -43,7 +44,7 @@
             setupViews()
             applyBarChrome()
             refreshContent()
-            terminalView.stickyModifiers.onChange = { [weak self] in
+            terminalView.stickyModifiers.onBarChange = { [weak self] in
                 self?.refreshContent()
             }
         }
@@ -160,42 +161,46 @@
         }
 
         private func makeView(for item: TerminalInputAccessoryItem) -> UIView {
+            // Titles and glyphs come from the item itself
+            // (`TerminalInputAccessoryItem.title` / `.systemImage`) so hosts
+            // that render their own picker UI stay in sync with the bar.
+            let title = item.title ?? ""
             switch item {
-            case .esc:
-                makeTrackedKeyButton(title: "Escape", systemImage: "escape", key: .esc)
-
             case .ctrl:
-                makeTrackedModifierButton(title: "Control", systemImage: "control", modifier: .ctrl)
+                return makeTrackedModifierButton(title: title, systemImage: item.systemImage ?? "", modifier: .ctrl)
 
             case .alt:
-                makeTrackedModifierButton(title: "Option", systemImage: "option", modifier: .alt)
+                return makeTrackedModifierButton(title: title, systemImage: item.systemImage ?? "", modifier: .alt)
 
             case .command:
-                makeTrackedModifierButton(title: "Command", systemImage: "command", modifier: .command)
+                return makeTrackedModifierButton(title: title, systemImage: item.systemImage ?? "", modifier: .command)
+
+            case .esc:
+                return makeTrackedKeyButton(title: title, systemImage: item.systemImage, key: .esc)
 
             case .tab:
-                makeTrackedKeyButton(title: "Tab", systemImage: "arrow.right.to.line", key: .tab)
+                return makeTrackedKeyButton(title: title, systemImage: item.systemImage, key: .tab)
 
             case .arrowLeft:
-                makeTrackedKeyButton(title: "Left", systemImage: "arrowtriangle.left.fill", key: .arrowLeft)
+                return makeTrackedKeyButton(title: title, systemImage: item.systemImage, key: .arrowLeft)
 
             case .arrowUp:
-                makeTrackedKeyButton(title: "Up", systemImage: "arrowtriangle.up.fill", key: .arrowUp)
+                return makeTrackedKeyButton(title: title, systemImage: item.systemImage, key: .arrowUp)
 
             case .arrowDown:
-                makeTrackedKeyButton(title: "Down", systemImage: "arrowtriangle.down.fill", key: .arrowDown)
+                return makeTrackedKeyButton(title: title, systemImage: item.systemImage, key: .arrowDown)
 
             case .arrowRight:
-                makeTrackedKeyButton(title: "Right", systemImage: "arrowtriangle.right.fill", key: .arrowRight)
+                return makeTrackedKeyButton(title: title, systemImage: item.systemImage, key: .arrowRight)
 
             case let .symbol(symbol):
-                makeTrackedKeyButton(title: symbol, key: .symbol(symbol))
+                return makeTrackedKeyButton(title: title, key: .symbol(symbol))
 
             case .paste:
-                makeTrackedKeyButton(title: "Paste", systemImage: "doc.on.clipboard", key: .paste)
+                return makeTrackedKeyButton(title: title, systemImage: item.systemImage, key: .paste)
 
             case .divider:
-                makeDivider()
+                return makeDivider()
             }
         }
 
@@ -278,13 +283,16 @@
         }
 
         private func makeBarEffect() -> UIVisualEffect {
+            // visionOS windows are glass already and the SDK has no
+            // `UIGlassEffect`; the blur is the bar's chrome there.
+            #if !os(visionOS)
             if #available(iOS 26, *) {
                 let effect = UIGlassEffect(style: .regular)
                 effect.isInteractive = true
                 return effect
-            } else {
-                return UIBlurEffect(style: .systemUltraThinMaterial)
             }
+            #endif
+            return UIBlurEffect(style: .systemUltraThinMaterial)
         }
 
         private func applyBarChrome() {
@@ -397,4 +405,5 @@
             configuration?.baseForegroundColor = tintColor
         }
     }
+    #endif
 #endif
