@@ -15,8 +15,8 @@
     "repo": "https://github.com/ghostty-org/ghostty.git",
     "commit": "3c1ef5b32fc5ea6b93d28493fabf193f595139cf",
     "android": {
-      "url": "https://github.com/rudironsoni/expo-libghostty/releases/download/storage.libghostty-vt.3c1ef5b32fc5.r1/libghostty-vt-android-3c1ef5b32fc5-r1.tar.gz",
-      "sha256": "39ae5ed0eb0b0330a583045c98ed5cc0dc5adff0b0d7d87a884bfc0ef995fcea"
+      "url": "https://github.com/sixtythreelabs/expo-libghostty/releases/download/storage.libghostty-vt.3c1ef5b32fc5.r1/libghostty-vt-android-3c1ef5b32fc5-r1.tar.gz",
+      "sha256": "98e119138ba69eb2be512e7cba5b9a15c4af38cd566d230d9bce698a3b28ffbc"
     }
   }
 }
